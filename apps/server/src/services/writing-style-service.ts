@@ -4,7 +4,7 @@ import { writingStyleMatrix } from '../db/schema';
 
 
 import { env } from '../env';
-import { google } from '@ai-sdk/google';
+import { google } from '../lib/llm';
 import { jsonrepair } from 'jsonrepair';
 import { generateObject } from 'ai';
 import { eq } from 'drizzle-orm';

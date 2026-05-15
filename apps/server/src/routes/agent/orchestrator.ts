@@ -1,5 +1,5 @@
 import { streamText, tool, type DataStreamWriter, type ToolSet } from 'ai';
-import { perplexity } from '@ai-sdk/perplexity';
+import { perplexity } from '../../lib/llm';
 
 import { getZeroAgent } from '../../lib/server-utils';
 import { Tools } from '../../types';

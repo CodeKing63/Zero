@@ -154,11 +154,6 @@ export function Navigation() {
                     </ul>
                   </NavigationMenuContent>
                 </NavigationMenuItem>
-                <NavigationMenuItem className="bg-transparent text-white">
-                  <Button asChild variant="ghost" className="h-9 bg-transparent cursor-pointer">
-                    <a href="/pricing">Pricing</a>
-                  </Button>
-                </NavigationMenuItem>
                 <NavigationMenuItem className="bg-transparent text-white cursor-pointer">
                   <a href="/privacy">
                     <Button variant="ghost" className="ml-1 h-9 bg-transparent">
@@ -245,9 +240,6 @@ export function Navigation() {
               <div className="flex flex-col space-y-3">
                 <Link to="/" onClick={() => setOpen(false)}>
                   Home
-                </Link>
-                <Link to="/pricing" onClick={() => setOpen(false)}>
-                  Pricing
                 </Link>
                 {aboutLinks.map((link) => (
                   <a key={link.title} href={link.href} className="block font-medium">

@@ -2,9 +2,8 @@ import { getCurrentDateContext, GmailSearchAssistantSystemPrompt } from '../../l
 import { getThread, getZeroAgent } from '../../lib/server-utils';
 import type { IGetThreadResponse } from '../../lib/driver/types';
 import { composeEmail } from '../../trpc/routes/ai/compose';
-import { perplexity } from '@ai-sdk/perplexity';
+import { perplexity, openai } from '../../lib/llm';
 import { colors } from '../../lib/prompts';
-import { openai } from '@ai-sdk/openai';
 import { generateText, tool } from 'ai';
 import { Tools } from '../../types';
 import { env } from '../../env';

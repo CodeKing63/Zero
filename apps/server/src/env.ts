@@ -64,15 +64,13 @@ export type ZeroEnv = {
   VITE_PUBLIC_BACKEND_URL: string;
   REDIS_URL: string;
   REDIS_TOKEN: string;
-  OPENAI_API_KEY: string;
+  OPENROUTER_API_KEY: string;
   BRAIN_URL: string;
   COMPOSIO_API_KEY: string;
   GROQ_API_KEY: string;
   EARLY_ACCESS_ENABLED: string;
   GOOGLE_GENERATIVE_AI_API_KEY: string;
-  AUTUMN_SECRET_KEY: string;
   AI_SYSTEM_PROMPT: string;
-  PERPLEXITY_API_KEY: string;
   TWILIO_ACCOUNT_SID: string;
   TWILIO_AUTH_TOKEN: string;
   TWILIO_PHONE_NUMBER: string;

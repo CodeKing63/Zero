@@ -113,42 +113,13 @@ export const bimiRouter = router({
     )
     .query(async ({ input }) => {
       const domain = input.email.split('@')[1];
-
       if (!domain) {
         throw new TRPCError({
           code: 'BAD_REQUEST',
           message: 'Unable to extract domain from email address',
         });
       }
-
-      const bimiRecordText = await fetchDnsRecord(domain);
-
-      if (!bimiRecordText) {
-        return {
-          domain,
-          bimiRecord: null,
-          logo: null,
-        };
-      }
-
-      const bimiRecord = parseBimiRecord(bimiRecordText);
-
-      let logo = null;
-      if (bimiRecord.logoUrl) {
-        const svgContent = await fetchLogoContent(bimiRecord.logoUrl);
-        if (svgContent) {
-          logo = {
-            url: bimiRecord.logoUrl,
-            svgContent,
-          };
-        }
-      }
-
-      return {
-        domain,
-        bimiRecord,
-        logo,
-      };
+      return { domain, bimiRecord: null, logo: null };
     }),
 
   getByDomain: privateProcedure
@@ -176,33 +147,6 @@ export const bimiRouter = router({
       }),
     )
     .query(async ({ input }) => {
-      const bimiRecordText = await fetchDnsRecord(input.domain);
-
-      if (!bimiRecordText) {
-        return {
-          domain: input.domain,
-          bimiRecord: null,
-          logo: null,
-        };
-      }
-
-      const bimiRecord = parseBimiRecord(bimiRecordText);
-
-      let logo = null;
-      if (bimiRecord.logoUrl) {
-        const svgContent = await fetchLogoContent(bimiRecord.logoUrl);
-        if (svgContent) {
-          logo = {
-            url: bimiRecord.logoUrl,
-            svgContent,
-          };
-        }
-      }
-
-      return {
-        domain: input.domain,
-        bimiRecord,
-        logo,
-      };
+      return { domain: input.domain, bimiRecord: null, logo: null };
     }),
 });

@@ -10,7 +10,15 @@
       "Bash(tee /tmp/zero-build2.log)",
       "Bash(bunx wrangler *)",
       "Bash(bunx oxlint@1.9.0 --deny-warnings)",
-      "Bash(git stash *)"
+      "Bash(git stash *)",
+      "Bash(bun nizzy *)",
+      "Bash(awk -F= '{ v=$2; gsub\\(/\"/,\"\",v\\); print $1, \\(length\\(v\\)>4 ? \"SET\\(\"length\\(v\\)\" chars\\)\" : \"EMPTY\"\\) }')",
+      "Bash(awk -F= ' *)",
+      "Bash(rm \"apps/mail/components/pricing/pricing-card.tsx\" \"apps/mail/components/pricing/comparision.tsx\" \"apps/mail/components/ui/pricing-dialog.tsx\" \"apps/mail/app/\\(full-width\\)/pricing.tsx\")",
+      "Bash(rmdir \"apps/mail/components/pricing\")",
+      "Bash(curl -s -i 'http://localhost:8787/api/auth/get-session')",
+      "Bash(curl -s -i 'http://localhost:8079/get/foo' -H \"Authorization: Bearer upstash-local-token\")",
+      "Bash(curl -s -i -m 10 'http://localhost:8787/api/auth/get-session')"
     ]
   }
 }
