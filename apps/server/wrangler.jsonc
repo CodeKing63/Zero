@@ -15,15 +15,18 @@
       ],
       "ai": {
         "binding": "AI",
+        "remote": true,
       },
       "vectorize": [
         {
           "binding": "VECTORIZE",
           "index_name": "threads-vector-staging",
+          "remote": true,
         },
         {
           "binding": "VECTORIZE_MESSAGE",
           "index_name": "messages-vector-staging",
+          "remote": true,
         },
       ],
       "r2_buckets": [

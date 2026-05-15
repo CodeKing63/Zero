@@ -48,7 +48,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    command: ['pnpm', 'run', 'db:migrate']
+    command: ['bun', 'run', 'db:migrate']
     restart: 'no'
 
   db:

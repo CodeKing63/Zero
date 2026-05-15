@@ -4,7 +4,7 @@ Zero is an open-source AI email solution built with a modern TypeScript/Next.js 
 
 ## Project Structure
 
-This is a pnpm workspace monorepo with the following structure:
+This is a Bun workspace monorepo with the following structure:
 - `apps/mail/` - Next.js frontend email client
 - `apps/server/` - Backend server
 - `apps/ios-app/` - iOS mobile app
@@ -16,40 +16,40 @@ This is a pnpm workspace monorepo with the following structure:
 ## Frequently Used Commands
 
 ### Development
-- `pnpm go` - Quick start: starts database and dev servers
-- `pnpm dev` - Start all development servers (uses Turbo)
-- `pnpm docker:db:up` - Start PostgreSQL database in Docker
-- `pnpm docker:db:down` - Stop and remove database container
-- `pnpm docker:db:clean` - Stop and remove database with volumes
+- `bun go` - Quick start: starts database and dev servers
+- `bun dev` - Start all development servers (uses Turbo)
+- `bun docker:db:up` - Start PostgreSQL database in Docker
+- `bun docker:db:down` - Stop and remove database container
+- `bun docker:db:clean` - Stop and remove database with volumes
 
 ### Build & Deploy
-- `pnpm build` - Build all packages (uses Turbo)
-- `pnpm build:frontend` - Build only the mail frontend
-- `pnpm deploy:frontend` - Deploy frontend
-- `pnpm deploy:backend` - Deploy backend
+- `bun run build` - Build all packages (uses Turbo)
+- `bun run build:frontend` - Build only the mail frontend
+- `bun run deploy:frontend` - Deploy frontend
+- `bun run deploy:backend` - Deploy backend
 
 ### Code Quality
-- `pnpm check` - Run format check and lint
-- `pnpm lint` - Run ESLint across all packages
-- `pnpm format` - Format code with Prettier
-- `pnpm check:format` - Check code formatting
+- `bun run check` - Run format check and lint
+- `bun run lint` - Run ESLint across all packages
+- `bun run format` - Format code with Prettier
+- `bun run check:format` - Check code formatting
 
 ### Database
-- `pnpm db:push` - Push schema changes to database
-- `pnpm db:generate` - Generate migration files
-- `pnpm db:migrate` - Apply database migrations
-- `pnpm db:studio` - Open Drizzle Studio
+- `bun db:push` - Push schema changes to database
+- `bun db:generate` - Generate migration files
+- `bun db:migrate` - Apply database migrations
+- `bun db:studio` - Open Drizzle Studio
 
 ### Testing & Evaluation
-- `pnpm test:ai` - Run AI tests
-- `pnpm eval` - Run evaluation suite
-- `pnpm eval:dev` - Run evaluation in dev mode
-- `pnpm eval:ci` - Run evaluation in CI mode
+- `bun run test:ai` - Run AI tests
+- `bun run eval` - Run evaluation suite
+- `bun run eval:dev` - Run evaluation in dev mode
+- `bun run eval:ci` - Run evaluation in CI mode
 
 ### Utilities
-- `pnpm nizzy env` - Setup environment variables
-- `pnpm nizzy sync` - Sync environment variables and types
-- `pnpm scripts` - Run custom scripts
+- `bun nizzy env` - Setup environment variables
+- `bun nizzy sync` - Sync environment variables and types
+- `bun scripts` - Run custom scripts
 
 ## Tech Stack
 
@@ -57,7 +57,7 @@ This is a pnpm workspace monorepo with the following structure:
 - **Backend**: Node.js, tRPC, Drizzle ORM
 - **Database**: PostgreSQL
 - **Authentication**: Better Auth, Google OAuth
-- **Package Manager**: pnpm (v10+)
+- **Package Manager**: Bun (v1.2+)
 - **Build Tool**: Turbo
 - **Linting**: ESLint, Oxlint, Prettier
 
@@ -73,7 +73,7 @@ This is a pnpm workspace monorepo with the following structure:
 ### File Organization
 - TypeScript strict mode enabled
 - Workspace packages use catalog versioning for shared dependencies
-- Monorepo managed with pnpm workspaces
+- Monorepo managed with Bun workspaces
 
 ### Important Environment Variables
 - `BETTER_AUTH_SECRET` - Auth secret key
@@ -84,19 +84,19 @@ This is a pnpm workspace monorepo with the following structure:
 
 ## Development Setup
 
-1. Install dependencies: `pnpm install`
-2. Setup environment: `pnpm nizzy env`
-3. Sync environment: `pnpm nizzy sync`
-4. Start database: `pnpm docker:db:up`
-5. Initialize database: `pnpm db:push`
-6. Start development: `pnpm dev`
+1. Install dependencies: `bun install`
+2. Setup environment: `bun nizzy env`
+3. Sync environment: `bun nizzy sync`
+4. Start database: `bun docker:db:up`
+5. Initialize database: `bun db:push`
+6. Start development: `bun dev`
 
 ## Common Workflow
 
-1. Always run `pnpm check` before committing
-2. Use `pnpm nizzy sync` after environment variable changes
-3. Run `pnpm db:push` after schema changes
-4. Use `pnpm go` for quick development startup
+1. Always run `bun run check` before committing
+2. Use `bun nizzy sync` after environment variable changes
+3. Run `bun db:push` after schema changes
+4. Use `bun go` for quick development startup
 
 ## Notes
 
@@ -108,7 +108,7 @@ This is a pnpm workspace monorepo with the following structure:
 
 ## IMPORTANT RESTRICTIONS
 
-- **NEVER run project-wide lint/format commands** (`pnpm check`, `pnpm lint`, `pnpm format`, `pnpm check:format`)
+- **NEVER run project-wide lint/format commands** (`bun run check`, `bun run lint`, `bun run format`, `bun run check:format`)
 - These commands format/lint the entire codebase and cause unnecessary changes
 - Only use targeted linting/formatting on specific files when absolutely necessary
 - Focus on the specific task at hand without touching unrelated files

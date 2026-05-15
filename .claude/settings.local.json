@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bun --version)",
+      "Bash(bun install *)",
+      "Bash(bun run *)",
+      "Bash(git check-ignore *)",
+      "Bash(tee /tmp/zero-build.log)",
+      "Read(//tmp/**)",
+      "Bash(tee /tmp/zero-build2.log)",
+      "Bash(bunx wrangler *)",
+      "Bash(bunx oxlint@1.9.0 --deny-warnings)",
+      "Bash(git stash *)"
+    ]
+  }
+}

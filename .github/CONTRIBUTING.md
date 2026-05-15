@@ -37,13 +37,13 @@ Thank you for your interest in contributing to 0.email! We're excited to have yo
    ```
 
 2. **Set Up Development Environment**
-   - Install [pnpm](https://pnpm.io)
-   - Clone the repository and install dependencies: `pnpm install`
-   - Start the database locally: `pnpm docker:db:up`
-   - Run `pnpm nizzy env` to setup your environment variables
-   - Run `pnpm nizzy sync` to sync your environment variables and types
+   - Install [Bun](https://bun.sh)
+   - Clone the repository and install dependencies: `bun install`
+   - Start the database locally: `bun docker:db:up`
+   - Run `bun nizzy env` to setup your environment variables
+   - Run `bun nizzy sync` to sync your environment variables and types
    - Set up your Google OAuth credentials (see [README.md](../README.md))
-   - Initialize the database: `pnpm db:push`
+   - Initialize the database: `bun db:push`
 
 ## Development Workflow
 
@@ -51,10 +51,10 @@ Thank you for your interest in contributing to 0.email! We're excited to have yo
 
    ```bash
    # Start database locally
-   pnpm docker:db:up
+   bun docker:db:up
 
    # Start the development server
-   pnpm dev
+   bun dev
    ```
 
 2. **Create a New Branch**
@@ -79,7 +79,7 @@ Thank you for your interest in contributing to 0.email! We're excited to have yo
    - Make sure the app runs without errors
    - Test your feature thoroughly
 
-   - Please lint using `pnpm dlx oxlint@latest` or by downloading an IDE extension here: https://oxc.rs/docs/guide/usage/linter.html#vscode-extension
+   - Please lint using `bunx oxlint@latest` or by downloading an IDE extension here: https://oxc.rs/docs/guide/usage/linter.html#vscode-extension
 
 5. **Commit Your Changes**
 
@@ -131,16 +131,16 @@ Zero uses PostgreSQL with Drizzle ORM. Here's how to work with it:
 
    ```bash
    # Apply schema changes to development database
-   pnpm db:push
+   bun db:push
 
    # Create migration files after schema changes
-   pnpm db:generate
+   bun db:generate
 
    # Apply migrations (for production)
-   pnpm db:migrate
+   bun db:migrate
 
    # View and edit data with Drizzle Studio
-   pnpm db:studio
+   bun db:studio
    ```
 
 3. **Database Connection**

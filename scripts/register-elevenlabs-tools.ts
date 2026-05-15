@@ -1,4 +1,4 @@
-#!/usr/bin/env tsx
+#!/usr/bin/env bun
 
 /**
  * Bulk-register / update all ai-sdk tools as ElevenLabs tools.
@@ -14,7 +14,7 @@
  *   ELEVENLABS_AGENT_ID         – ElevenLabs agent ID to update with tools
  *
  * Usage:
- *   pnpm tsx scripts/register-elevenlabs-tools-v2.ts
+ *   bun run scripts/register-elevenlabs-tools.ts
  */
 
 import { zodToJsonSchema } from 'zod-to-json-schema';

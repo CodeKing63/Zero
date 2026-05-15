@@ -7,7 +7,7 @@ import {
   SuperSearchEmail,
   WelcomeEmail,
 } from './react-emails/email-sequences';
-import { createAuthMiddleware, phoneNumber, jwt, bearer, mcp } from 'better-auth/plugins';
+import { phoneNumber, jwt, bearer, mcp } from 'better-auth/plugins';
 import { type Account, betterAuth, type BetterAuthOptions } from 'better-auth';
 import { getBrowserTimezone, isValidTimezone } from './timezones';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
@@ -17,7 +17,7 @@ import { redis, resend, twilio } from './services';
 import { dubAnalytics } from '@dub/better-auth';
 import { defaultUserSettings } from './schemas';
 import { disableBrainFunction } from './brain';
-import { APIError } from 'better-auth/api';
+import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { type EProviders } from '../types';
 import { createDriver } from './driver';
 import { Autumn } from 'autumn-js';
