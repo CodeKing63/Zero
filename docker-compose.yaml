@@ -1,0 +1,95 @@
+services:
+  db:
+    container_name: zero-db
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: zerodotemail
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', 'postgres', '-d', 'zerodotemail']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  valkey:
+    container_name: zero-valkey
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    volumes:
+      - valkey-data:/data
+    healthcheck:
+      test: ['CMD', 'valkey-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  upstash-proxy:
+    container_name: zero-upstash-proxy
+    image: hiett/serverless-redis-http:latest
+    restart: unless-stopped
+    environment:
+      SRH_MODE: env
+      SRH_TOKEN: ${REDIS_TOKEN:-upstash-local-token}
+      SRH_CONNECTION_STRING: 'redis://valkey:6379'
+    depends_on:
+      valkey:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--spider', '--quiet', 'http://127.0.0.1:80']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  migrations:
+    container_name: zero-migrations
+    build:
+      context: .
+      dockerfile: docker/server/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/zerodotemail
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ['bun', 'run', 'db:push']
+    restart: 'no'
+
+  server:
+    container_name: zero-server
+    build:
+      context: .
+      dockerfile: docker/server/Dockerfile
+    env_file:
+      - .env
+    volumes:
+      # Mount .env so the entrypoint can rewrite localhost->service-name URLs
+      # at startup. Read-only since we never want the container writing back.
+      - ./.env:/app/.env:ro
+    ports:
+      - '8787:8787'
+    depends_on:
+      upstash-proxy:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+
+  mail:
+    container_name: zero-mail
+    build:
+      context: .
+      dockerfile: docker/mail/Dockerfile
+      args:
+        VITE_PUBLIC_BACKEND_URL: http://localhost:8787
+        VITE_PUBLIC_APP_URL: http://localhost:3000
+    ports:
+      - '3000:3000'
+    depends_on:
+      - server
+
+volumes:
+  postgres-data:
+  valkey-data:

@@ -18,7 +18,18 @@
       "Bash(rmdir \"apps/mail/components/pricing\")",
       "Bash(curl -s -i 'http://localhost:8787/api/auth/get-session')",
       "Bash(curl -s -i 'http://localhost:8079/get/foo' -H \"Authorization: Bearer upstash-local-token\")",
-      "Bash(curl -s -i -m 10 'http://localhost:8787/api/auth/get-session')"
+      "Bash(curl -s -i -m 10 'http://localhost:8787/api/auth/get-session')",
+      "Bash(git mv *)",
+      "Bash(docker compose *)",
+      "Read(//c/Users/AliBa/AppData/Local/Temp/claude/C--Users-AliBa-OneDrive-Documents-gitHub-Zero/2a013a8c-45ba-47a7-8120-2f1c18da627d/tasks/**)",
+      "Bash(netstat -ano)",
+      "Bash(docker run *)",
+      "Bash(docker pull *)",
+      "Bash(docker history *)",
+      "Bash(docker exec *)",
+      "Bash(MSYS_NO_PATHCONV=1 docker run *)",
+      "Bash(curl -s -i -m 10 'http://localhost:3000/')",
+      "Bash(curl *)"
     ]
   }
 }
