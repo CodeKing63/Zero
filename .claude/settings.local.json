@@ -29,7 +29,10 @@
       "Bash(docker exec *)",
       "Bash(MSYS_NO_PATHCONV=1 docker run *)",
       "Bash(curl -s -i -m 10 'http://localhost:3000/')",
-      "Bash(curl *)"
+      "Bash(curl *)",
+      "Bash(grep -E '^CLOUDFLARE_API_TOKEN=.{8,}' .env)",
+      "Bash(docker stats *)",
+      "Bash(docker volume *)"
     ]
   }
 }

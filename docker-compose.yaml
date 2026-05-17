@@ -69,6 +69,10 @@ services:
       # Mount .env so the entrypoint can rewrite localhost->service-name URLs
       # at startup. Read-only since we never want the container writing back.
       - ./.env:/app/.env:ro
+      # Persist Durable Object / KV / R2 / Queue / Workflow sqlite across
+      # container recreates. Without this, every `docker compose up
+      # --force-recreate` wipes synced threads (they live in DO sqlite, not pg).
+      - server-wrangler-state:/app/apps/server/.wrangler
     ports:
       - '8787:8787'
     depends_on:
@@ -93,3 +97,4 @@ services:
 volumes:
   postgres-data:
   valkey-data:
+  server-wrangler-state:

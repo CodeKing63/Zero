@@ -36,7 +36,6 @@
         "@fontsource-variable/geist": "5.2.6",
         "@fontsource-variable/geist-mono": "5.2.6",
         "@hookform/resolvers": "4.1.2",
-        "@intercom/messenger-js-sdk": "0.0.14",
         "@react-email/components": "^0.0.36",
         "@react-email/html": "^0.0.11",
         "@react-email/render": "1.1.0",
@@ -702,8 +701,6 @@
     "@inquirer/figures": ["@inquirer/figures@2.0.5", "", {}, "sha512-NsSs4kzfm12lNetHwAn3GEuH317IzpwrMCbOuMIVytpjnJ90YYHNwdRgYGuKmVxwuIqSgqk3M5qqQt1cDk0tGQ=="],
 
     "@inquirer/type": ["@inquirer/type@4.0.5", "", { "peerDependencies": { "@types/node": ">=18" }, "optionalPeers": ["@types/node"] }, "sha512-aetVUNeKNc/VriqXlw1NRSW0zhMBB0W4bNbWRJgzRl/3d0QNDQFfk0GO5SDdtjMZVg6o8ZKEiadd7SCCzoOn5Q=="],
-
-    "@intercom/messenger-js-sdk": ["@intercom/messenger-js-sdk@0.0.14", "", {}, "sha512-2dH4BDAh9EI90K7hUkAdZ76W79LM45Sd1OBX7t6Vzy8twpNiQ5X+7sH9G5hlJlkSGnf+vFWlFcy9TOYAyEs1hA=="],
 
     "@isaacs/cliui": ["@isaacs/cliui@9.0.0", "", {}, "sha512-AokJm4tuBHillT+FpMtxQ60n8ObyXBatq7jD2/JA9dxbDDokKQm8KMht5ibGzLVU9IJDIKK4TPKgMHEYMn3lMg=="],
 
