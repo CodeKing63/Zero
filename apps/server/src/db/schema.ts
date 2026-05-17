@@ -322,3 +322,36 @@ export const emailTemplate = createTable(
     unique('mail0_email_template_user_id_name_unique').on(t.userId, t.name),
   ],
 );
+
+// ---- Chat history ------------------------------------------------------
+
+export const chats = createTable(
+  'chats',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    connectionId: text('connection_id')
+      .notNull()
+      .references(() => connection.id, { onDelete: 'cascade' }),
+    title: text('title').notNull().default('New chat'),
+    isPinned: boolean('is_pinned').notNull().default(false),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (t) => [index('chats_connection_id_idx').on(t.connectionId, t.isPinned, t.updatedAt)],
+);
+
+export const chatMessages = createTable(
+  'chat_messages',
+  {
+    id: text('id').primaryKey(),
+    chatId: text('chat_id')
+      .notNull()
+      .references(() => chats.id, { onDelete: 'cascade' }),
+    role: text('role').notNull(),
+    message: jsonb('message').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => [index('chat_messages_chat_id_idx').on(t.chatId, t.createdAt)],
+);
