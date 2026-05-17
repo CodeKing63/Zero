@@ -337,9 +337,9 @@ export const chats = createTable(
     title: text('title').notNull().default('New chat'),
     isPinned: boolean('is_pinned').notNull().default(false),
     createdAt: timestamp('created_at').notNull().defaultNow(),
-    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow().$onUpdate(() => new Date()),
   },
-  (t) => [index('chats_connection_id_idx').on(t.connectionId, t.isPinned, t.updatedAt)],
+  (t) => [index('chats_connection_id_idx').on(t.connectionId, t.isPinned.desc(), t.updatedAt.desc())],
 );
 
 export const chatMessages = createTable(
