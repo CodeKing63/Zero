@@ -163,7 +163,6 @@ export class SyncThreadsWorkflow extends WorkflowEntrypoint<ZeroEnv, SyncThreads
 
               pageProcessingResult.processedCount++;
               pageProcessingResult.successCount++;
-              console.log(`[SyncThreadsWorkflow] Successfully synced thread ${thread.id}`);
             } else {
               console.info(
                 `[SyncThreadsWorkflow] Skipping thread ${thread.id} - no latest message`,

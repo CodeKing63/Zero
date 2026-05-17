@@ -960,7 +960,7 @@ export class ZeroAgent extends AIChatAgent<typeof env> {
     max?: number;
     cursor?: string;
   }) {
-    const { labelIds = [], folder, q, max = 50, cursor } = params;
+    const { labelIds = [], folder, q, max = 500, cursor } = params;
 
     try {
       // Build WHERE conditions
@@ -1273,7 +1273,7 @@ export class ZeroMCP extends McpAgent<typeof env, {}, { userId: string }> {
       {
         folder: z.string().default(FOLDERS.INBOX),
         query: z.string().optional(),
-        maxResults: z.number().optional().default(5),
+        maxResults: z.number().optional().default(200),
         labelIds: z.array(z.string()).optional(),
         pageToken: z.string().optional(),
       },
@@ -1309,6 +1309,94 @@ export class ZeroMCP extends McpAgent<typeof env, {}, { userId: string }> {
                   text: 'No threads found',
                 },
               ],
+        };
+      },
+    );
+
+    // Bulk operation: search for threads matching `query` + filters, then apply
+    // the same add/remove label change to every match across all pages. Useful
+    // for "move all emails from X to trash" — the agent does NOT need to fetch
+    // the matching threads into the chat context first.
+    this.server.tool(
+      'modifyThreadsByQuery',
+      {
+        query: z
+          .string()
+          .optional()
+          .describe('Gmail-style search query, e.g. "from:ebay.com" or "subject:invoice"'),
+        folder: z
+          .string()
+          .default(FOLDERS.INBOX)
+          .describe('Folder to scope the search (inbox, sent, archive, spam, bin)'),
+        labelIds: z
+          .array(z.string())
+          .optional()
+          .describe('Additional label IDs to filter the candidates by'),
+        addLabels: z
+          .array(z.string())
+          .default([])
+          .describe('Labels to add to every matching thread, e.g. ["TRASH"]'),
+        removeLabels: z
+          .array(z.string())
+          .default([])
+          .describe('Labels to remove from every matching thread, e.g. ["INBOX"]'),
+        maxThreads: z
+          .number()
+          .optional()
+          .default(10000)
+          .describe('Safety cap to prevent runaway operations on huge mailboxes'),
+      },
+      async (s) => {
+        if (s.addLabels.length === 0 && s.removeLabels.length === 0) {
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: 'Refused: provide at least one of addLabels or removeLabels.',
+              },
+            ],
+          };
+        }
+        let matched = 0;
+        let modified = 0;
+        let pageToken: string | undefined = undefined;
+        while (true) {
+          const page = await driver.list({
+            folder: s.folder,
+            query: s.query,
+            labelIds: s.labelIds,
+            maxResults: 500,
+            pageToken,
+          });
+          const ids = (page.threads ?? []).map((t) => t.id).filter(Boolean);
+          if (ids.length === 0) break;
+
+          let toModify = ids;
+          if (matched + ids.length > s.maxThreads) {
+            toModify = ids.slice(0, s.maxThreads - matched);
+          }
+          matched += ids.length;
+
+          if (toModify.length > 0) {
+            await driver.modifyLabels(toModify, {
+              addLabels: s.addLabels,
+              removeLabels: s.removeLabels,
+            });
+            modified += toModify.length;
+          }
+
+          if (modified >= s.maxThreads) break;
+          pageToken = page.nextPageToken ?? undefined;
+          if (!pageToken) break;
+        }
+        const capped = matched >= s.maxThreads;
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Matched ${matched} thread${matched === 1 ? '' : 's'}, modified ${modified}.${capped ? ` (capped at maxThreads=${s.maxThreads})` : ''}`,
+            },
+          ],
         };
       },
     );

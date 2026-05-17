@@ -380,6 +380,43 @@ const bulkDelete = (connectionId: string) =>
     },
   });
 
+const modifyThreadsByQuery = (connectionId: string) =>
+  tool({
+    description:
+      'Bulk-modify Gmail labels on every thread matching a query. Use this for "move all X to trash", "archive all from Y", "mark all unread as read", etc. Returns counts only — it does NOT enumerate threads into your context, so it scales to mailboxes with thousands of matches.\n\nIMPORTANT: When the user asks for a bulk action, do NOT call InboxRag or listThreads first to count or preview the matches. Those tools only sample a small subset and will mislead the user about the true scope. Instead: (1) confirm the user\'s intent with a short message describing the query you\'ll run, e.g. "I\'ll move every email from linkedin.com to the trash — confirm?", (2) on confirmation, call this tool directly, (3) report the accurate `matched` and `modified` counts from the tool\'s return value.',
+    parameters: z.object({
+      query: z
+        .string()
+        .optional()
+        .describe('Gmail-style search, e.g. "from:ebay.com" or "subject:invoice older_than:30d"'),
+      folder: z
+        .string()
+        .default('inbox')
+        .describe('Folder scope: inbox, sent, archive, spam, bin'),
+      labelIds: z
+        .array(z.string())
+        .optional()
+        .describe('Additional label IDs to filter candidates by'),
+      addLabels: z
+        .array(z.string())
+        .default([])
+        .describe('Labels to add to every match, e.g. ["TRASH"]'),
+      removeLabels: z
+        .array(z.string())
+        .default([])
+        .describe('Labels to remove from every match, e.g. ["INBOX"]'),
+      maxThreads: z
+        .number()
+        .optional()
+        .default(10000)
+        .describe('Safety cap to prevent runaway operations'),
+    }),
+    execute: async (params) => {
+      const { stub: agent } = await getZeroAgent(connectionId);
+      return await agent.modifyThreadsByQuery(params);
+    },
+  });
+
 const bulkArchive = (connectionId: string) =>
   tool({
     description: 'Move multiple emails to the archive by removing the INBOX label',
@@ -491,16 +528,20 @@ export const tools = async (connectionId: string, ragEffect: boolean = false) =>
     [Tools.CreateLabel]: createLabel(connectionId),
     [Tools.BulkDelete]: bulkDelete(connectionId),
     [Tools.BulkArchive]: bulkArchive(connectionId),
+    [Tools.ModifyThreadsByQuery]: modifyThreadsByQuery(connectionId),
     [Tools.DeleteLabel]: deleteLabel(connectionId),
     [Tools.BuildGmailSearchQuery]: buildGmailSearchQuery(),
     [Tools.GetCurrentDate]: getCurrentDate(),
     [Tools.WebSearch]: webSearch(),
     [Tools.InboxRag]: tool({
       description:
-        'Search the inbox for emails using natural language. Returns only an array of threadIds.',
+        'Search the inbox for emails using natural language. Returns only an array of threadIds. Pass a high maxResults (up to 500) when the user asks for "all" matching emails so you do not under-report.',
       parameters: z.object({
         query: z.string().describe('The query to search the inbox for'),
-        maxResults: z.number().describe('The maximum number of results to return').default(10),
+        maxResults: z
+          .number()
+          .describe('The maximum number of results to return (cap 500)')
+          .default(200),
         folder: z.string().describe('The folder to search the inbox for').default('inbox'),
       }),
       execute: async ({ query, maxResults, folder }) => {

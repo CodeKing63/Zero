@@ -35,7 +35,8 @@ export type ZeroEnv = {
   ELEVENLABS_API_KEY: '1234567890';
   DISABLE_CALLS: 'true' | '';
   DROP_AGENT_TABLES: 'false';
-  THREAD_SYNC_MAX_COUNT: '5' | '20' | '10';
+  THREAD_SYNC_MAX_COUNT: string;
+  THREAD_SYNC_MAX_TOTAL: string;
   THREAD_SYNC_LOOP: 'false' | 'true';
   DISABLE_WORKFLOWS: 'true';
   AUTORAG_ID: '';

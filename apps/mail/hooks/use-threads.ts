@@ -1,6 +1,7 @@
 import { backgroundQueueAtom, isThreadInBackgroundQueueAtom } from '@/store/backgroundQueue';
-import { useInfiniteQuery, useQuery, useMutation } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { IGetThreadResponse } from '../../server/src/lib/driver/types';
+import { useActiveConnection } from '@/hooks/use-connections';
 import { useSearchValue } from '@/hooks/use-search-value';
 import { useTRPC } from '@/providers/query-provider';
 import useSearchLabels from './use-labels-search';
@@ -10,7 +11,7 @@ import { useSettings } from './use-settings';
 import { useParams } from 'react-router';
 import { useTheme } from 'next-themes';
 import { useQueryState } from 'nuqs';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 export const useThreads = () => {
   const { folder } = useParams<{ folder: string }>();
@@ -18,7 +19,23 @@ export const useThreads = () => {
   const [backgroundQueue] = useAtom(backgroundQueueAtom);
   const isInQueue = useAtomValue(isThreadInBackgroundQueueAtom);
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const { labels } = useSearchLabels();
+  const { data: activeConnection } = useActiveConnection();
+
+  // tRPC's listThreads query key doesn't include connectionId (the server reads
+  // it from the session), so react-query happily returns the previous account's
+  // cached threads after an account switch. Drop the mail caches whenever the
+  // active connection changes so the UI clears + refetches for the new account.
+  const lastConnectionId = useRef<string | undefined>(activeConnection?.id);
+  useEffect(() => {
+    const current = activeConnection?.id;
+    if (!current || lastConnectionId.current === current) return;
+    lastConnectionId.current = current;
+    queryClient.removeQueries({ queryKey: trpc.mail.listThreads.queryKey() });
+    queryClient.removeQueries({ queryKey: trpc.mail.get.queryKey() });
+    queryClient.removeQueries({ queryKey: trpc.labels.list.queryKey() });
+  }, [activeConnection?.id, queryClient, trpc]);
 
   const threadsQuery = useInfiniteQuery(
     trpc.mail.listThreads.infiniteQueryOptions(

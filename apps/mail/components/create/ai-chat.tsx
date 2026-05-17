@@ -13,6 +13,7 @@ import type { Message as AiMessage } from 'ai';
 import { VoiceButton } from '../voice-button';
 import { EditorContent } from '@tiptap/react';
 import { CurvedArrow } from '../icons/icons';
+import { Check, Loader2 } from 'lucide-react';
 import { Tools } from '../../types/tools';
 import { format } from 'date-fns-tz';
 import { useQueryState } from 'nuqs';
@@ -193,6 +194,50 @@ const ToolResponse = ({ toolName, result, args }: { toolName: string; result: an
   }
 };
 
+// Human-readable labels for tool calls shown as breadcrumbs in the chat.
+// Keys match the Tools enum values from apps/server/src/types.ts.
+const TOOL_LABELS: Record<string, { running: string; done: string }> = {
+  inboxRag: { running: 'Searching inbox', done: 'Searched inbox' },
+  listThreads: { running: 'Listing threads', done: 'Listed threads' },
+  getThread: { running: 'Reading thread', done: 'Read thread' },
+  getThreadSummary: { running: 'Summarizing thread', done: 'Summarized thread' },
+  getUserLabels: { running: 'Fetching labels', done: 'Fetched labels' },
+  modifyLabels: { running: 'Updating labels', done: 'Updated labels' },
+  bulkDelete: { running: 'Moving to trash', done: 'Moved to trash' },
+  bulkArchive: { running: 'Archiving', done: 'Archived' },
+  modifyThreadsByQuery: { running: 'Bulk-modifying matching threads', done: 'Bulk-modified threads' },
+  markThreadsRead: { running: 'Marking as read', done: 'Marked as read' },
+  markThreadsUnread: { running: 'Marking as unread', done: 'Marked as unread' },
+  composeEmail: { running: 'Drafting email', done: 'Drafted email' },
+  sendEmail: { running: 'Sending email', done: 'Sent email' },
+  createLabel: { running: 'Creating label', done: 'Created label' },
+  deleteLabel: { running: 'Deleting label', done: 'Deleted label' },
+  buildGmailSearchQuery: { running: 'Building search query', done: 'Built search query' },
+  getCurrentDate: { running: 'Checking date', done: 'Checked date' },
+  webSearch: { running: 'Searching the web', done: 'Searched the web' },
+};
+
+const ToolBreadcrumb = ({
+  toolName,
+  state,
+}: {
+  toolName: string;
+  state: 'partial-call' | 'call' | 'result' | string;
+}) => {
+  const labels = TOOL_LABELS[toolName] ?? { running: toolName, done: toolName };
+  const done = state === 'result';
+  return (
+    <div className="mr-auto my-0.5 flex items-center gap-1.5 px-2 text-xs text-muted-foreground">
+      {done ? (
+        <Check className="h-3 w-3 text-emerald-500" />
+      ) : (
+        <Loader2 className="h-3 w-3 animate-spin" />
+      )}
+      <span>{done ? labels.done : `${labels.running}…`}</span>
+    </div>
+  );
+};
+
 export function AIChat({
   messages,
   setInput,
@@ -280,17 +325,22 @@ export function AIChat({
 
               return (
                 <div key={`${message.id}-${index}`} className="mb-2 flex flex-col" data-message-role={message.role}>
-                  {toolParts.map(
-                    (part, index) =>
-                      part.toolInvocation?.result && (
-                        <ToolResponse
-                          key={`${part.toolInvocation.toolName}-${index}`}
-                          toolName={part.toolInvocation.toolName}
-                          result={part.toolInvocation.result}
-                          args={part.toolInvocation.args}
-                        />
-                      ),
-                  )}
+                  {toolParts.map((part, idx) => {
+                    const inv = part.toolInvocation;
+                    if (!inv) return null;
+                    return (
+                      <div key={inv.toolCallId ?? `${inv.toolName}-${idx}`}>
+                        <ToolBreadcrumb toolName={inv.toolName} state={inv.state} />
+                        {inv.state === 'result' && (
+                          <ToolResponse
+                            toolName={inv.toolName}
+                            result={inv.result}
+                            args={inv.args}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
                   {textParts.length > 0 && (
                     <div
                       className={cn(

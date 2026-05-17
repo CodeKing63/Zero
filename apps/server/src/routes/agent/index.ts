@@ -43,7 +43,13 @@ import {
   type ParsedMessage,
 } from '../../types';
 import type { IGetThreadResponse, IGetThreadsResponse, MailManager } from '../../lib/driver/types';
-import { connectionToDriver, getZeroSocketAgent, reSyncThread } from '../../lib/server-utils';
+import {
+  connectionToDriver,
+  getZeroSocketAgent,
+  modifyThreadLabelsInDB,
+  reSyncThread,
+} from '../../lib/server-utils';
+import { redis } from '../../lib/services';
 import { generateWhatUserCaresAbout, type UserTopic } from '../../lib/analyze/interests';
 import { DurableObjectOAuthClientProvider } from 'agents/mcp/do-oauth-client-provider';
 import { AiChatPrompt, GmailSearchAssistantSystemPrompt } from '../../lib/prompts';
@@ -841,6 +847,100 @@ export class ZeroDriver extends DurableObject<ZeroEnv> {
     });
   }
 
+  // Bulk-modify labels for every thread matching a Gmail query + filter.
+  // Paginates the Gmail list endpoint 500 at a time, calls modifyLabels per
+  // page, returns counts only. Lets the chat AI say "trash all ebay emails"
+  // without ever pulling the matched threads into its context.
+  async modifyThreadsByQuery(params: {
+    query?: string;
+    folder?: string;
+    labelIds?: string[];
+    addLabels?: string[];
+    removeLabels?: string[];
+    maxThreads?: number;
+  }): Promise<{ matched: number; modified: number; capped: boolean }> {
+    if (!this.driver) {
+      throw new Error('No driver available');
+    }
+    const {
+      query,
+      folder = 'inbox',
+      labelIds,
+      addLabels = [],
+      removeLabels = [],
+      maxThreads = 10000,
+    } = params;
+
+    if (addLabels.length === 0 && removeLabels.length === 0) {
+      throw new Error('Provide at least one of addLabels / removeLabels.');
+    }
+
+    let matched = 0;
+    let modified = 0;
+    let pageToken: string | undefined = undefined;
+    while (true) {
+      const page = await this.driver.list({
+        folder,
+        query,
+        labelIds,
+        maxResults: 500,
+        pageToken,
+      });
+      const ids = (page.threads ?? [])
+        .map((t: { id?: string }) => t.id)
+        .filter((id): id is string => Boolean(id));
+      if (ids.length === 0) break;
+
+      let toModify = ids;
+      if (matched + ids.length > maxThreads) {
+        toModify = ids.slice(0, Math.max(0, maxThreads - matched));
+      }
+      matched += ids.length;
+
+      if (toModify.length > 0) {
+        await this.driver.modifyLabels(toModify, { addLabels, removeLabels });
+        // Mirror the same change in the local DO sqlite store the UI reads
+        // from. Each call below makes ~4 sub-RPCs (shard lookup, shard write,
+        // stats cache invalidate, doState broadcast); firing all 500 in
+        // parallel exhausts workerd's subrequest budget and 503s every other
+        // route. Drain through a small worker pool instead.
+        const queue = [...toModify];
+        const concurrency = 5;
+        let mirrorOk = 0;
+        let mirrorMissing = 0;
+        let mirrorErr = 0;
+        await Promise.all(
+          Array.from({ length: concurrency }, async () => {
+            while (queue.length > 0) {
+              const id = queue.shift();
+              if (!id) break;
+              try {
+                await modifyThreadLabelsInDB(this.name, id, addLabels, removeLabels);
+                mirrorOk++;
+              } catch (err) {
+                const msg = err instanceof Error ? err.message : String(err);
+                if (msg.includes('not found')) {
+                  mirrorMissing++;
+                } else {
+                  mirrorErr++;
+                  console.warn(`[modifyThreadsByQuery] Mirror failed for ${id}: ${msg}`);
+                }
+              }
+            }
+          }),
+        );
+        console.info(
+          `[modifyThreadsByQuery] Page mirror: ok=${mirrorOk}, missing-from-local-db=${mirrorMissing}, errored=${mirrorErr} (of ${toModify.length})`,
+        );
+        modified += toModify.length;
+      }
+      if (modified >= maxThreads) break;
+      pageToken = page.nextPageToken ?? undefined;
+      if (!pageToken) break;
+    }
+    return { matched, modified, capped: matched >= maxThreads };
+  }
+
   async updateLabel(
     id: string,
     label: { name: string; color?: { backgroundColor: string; textColor: string } },
@@ -1110,7 +1210,7 @@ export class ZeroDriver extends DurableObject<ZeroEnv> {
     labelIds?: string[];
     pageToken?: string;
   }) {
-    const { query, folder = 'inbox', maxResults = 50, labelIds = [], pageToken } = params;
+    const { query, folder = 'inbox', maxResults = 500, labelIds = [], pageToken } = params;
 
     if (!this.driver) {
       throw new Error('No driver available');
@@ -1303,7 +1403,7 @@ export class ZeroDriver extends DurableObject<ZeroEnv> {
     maxResults?: number;
     pageToken?: string;
   }): Promise<IGetThreadsResponse> {
-    const { maxResults = 50 } = params;
+    const { maxResults = 500 } = params;
     const normalizedParams = {
       ...params,
       folder: params.folder ? this.normalizeFolderName(params.folder) : undefined,
@@ -1655,7 +1755,6 @@ export class ZeroDriver extends DurableObject<ZeroEnv> {
         labelIds,
       );
       //   await sendDoState(this.name);
-      console.log(`[ZeroDriver] Successfully stored thread ${threadData.id} in database`);
     } catch (error) {
       console.error(`[ZeroDriver] Failed to store thread ${threadData.id} in database:`, error);
       throw error;

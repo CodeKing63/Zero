@@ -82,13 +82,17 @@ export class SyncThreadsCoordinatorWorkflow extends WorkflowEntrypoint<
       }
 
       const maxCount = parseInt(this.env.THREAD_SYNC_MAX_COUNT || '20');
+      // 0 (default) = unlimited; otherwise stop after this many threads even
+      // when shouldLoop=true. Prevents Gmail quota burn on huge inboxes.
+      const maxTotal = parseInt(this.env.THREAD_SYNC_MAX_TOTAL || '0');
       const shouldLoop = this.env.THREAD_SYNC_LOOP === 'true';
 
-      return { maxCount, shouldLoop, foundConnection };
+      return { maxCount, maxTotal, shouldLoop, foundConnection };
     });
 
-    const { maxCount, shouldLoop, foundConnection } = setupResult as {
+    const { maxCount, maxTotal, shouldLoop, foundConnection } = setupResult as {
       maxCount: number;
+      maxTotal: number;
       shouldLoop: boolean;
       foundConnection: any;
     };
@@ -192,6 +196,15 @@ export class SyncThreadsCoordinatorWorkflow extends WorkflowEntrypoint<
       // If no more pages, stop
       if (!currentPageToken) {
         console.info(`[SyncThreadsCoordinatorWorkflow] No more pages for ${folder}`);
+        break;
+      }
+
+      // Stop if we've hit the per-sync total cap.
+      if (maxTotal > 0 && result.totalSynced >= maxTotal) {
+        console.info(
+          `[SyncThreadsCoordinatorWorkflow] Reached THREAD_SYNC_MAX_TOTAL=${maxTotal} for ${folder} (synced ${result.totalSynced}). Stopping.`,
+        );
+        result.message = `Stopped at max total of ${maxTotal}`;
         break;
       }
     } while (currentPageToken && shouldLoop);

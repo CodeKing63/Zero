@@ -383,7 +383,6 @@ export class WorkflowRunner extends DurableObject<ZeroEnv> {
               Effect.tryPromise({
                 try: async () => {
                   const result = await agent.syncThread({ threadId });
-                  console.log(`[ZERO_WORKFLOW] Successfully synced thread ${threadId}`);
                   return { threadId, result };
                 },
                 catch: (error) => {
