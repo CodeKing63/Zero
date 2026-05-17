@@ -36,7 +36,8 @@
       "Bash(grep -nE \"Tools\\\\.|\\\\\\\\[Tools\\\\\\\\.\" apps/server/src/routes/agent/tools.ts apps/server/src/types/tools.ts apps/server/src/types/index.ts)",
       "Bash(awk '/this\\\\.server\\\\.tool\\\\\\(/{getline; print NR\": \"$0}' apps/server/src/routes/chat.ts)",
       "Bash(sed -i 's|^THREAD_SYNC_MAX_TOTAL=.*|THREAD_SYNC_MAX_TOTAL=4000|' .env)",
-      "Bash(sed -i 's|^THREAD_SYNC_MAX_COUNT=.*|THREAD_SYNC_MAX_COUNT=500|' .env)"
+      "Bash(sed -i 's|^THREAD_SYNC_MAX_COUNT=.*|THREAD_SYNC_MAX_COUNT=500|' .env)",
+      "Bash(bunx tsc *)"
     ]
   }
 }

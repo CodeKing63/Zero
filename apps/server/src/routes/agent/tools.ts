@@ -380,10 +380,14 @@ const bulkDelete = (connectionId: string) =>
     },
   });
 
-const modifyThreadsByQuery = (connectionId: string) =>
+// Bulk modify is split into prepare → commit so the user sees an accurate
+// pre-count before any state changes. Phase 1 paginates Gmail and caches the
+// matching IDs in Redis. Phase 2 reuses those exact IDs to modify Gmail +
+// mirror the local DO sqlite. AI MUST chain them in that order.
+const prepareBulkAction = (connectionId: string) =>
   tool({
     description:
-      'Bulk-modify Gmail labels on every thread matching a query. Use this for "move all X to trash", "archive all from Y", "mark all unread as read", etc. Returns counts only — it does NOT enumerate threads into your context, so it scales to mailboxes with thousands of matches.\n\nIMPORTANT: When the user asks for a bulk action, do NOT call InboxRag or listThreads first to count or preview the matches. Those tools only sample a small subset and will mislead the user about the true scope. Instead: (1) confirm the user\'s intent with a short message describing the query you\'ll run, e.g. "I\'ll move every email from linkedin.com to the trash — confirm?", (2) on confirmation, call this tool directly, (3) report the accurate `matched` and `modified` counts from the tool\'s return value.',
+      'PHASE 1 of a bulk-modify flow. Paginates Gmail for every thread matching `query`+filters, caches the IDs in Redis (10-min TTL), returns the accurate `matched` count and a `jobId`. Use this whenever the user asks for a bulk action like "trash all X", "archive everything from Y", "mark all unread as read".\n\nFlow:\n1. Call this tool with the query.\n2. Present the `matched` count to the user and ask them to confirm the action (e.g. "Found 803 emails from linkedin.com — confirm you want to move them all to trash?").\n3. On user confirmation, call `commitBulkAction` with the returned `jobId` plus the desired `addLabels`/`removeLabels`.\n\nDo NOT call inboxRag, listThreads, or any search tool to pre-count or preview — those only sample a subset and will mislead the user about scope.',
     parameters: z.object({
       query: z
         .string()
@@ -397,23 +401,36 @@ const modifyThreadsByQuery = (connectionId: string) =>
         .array(z.string())
         .optional()
         .describe('Additional label IDs to filter candidates by'),
-      addLabels: z
-        .array(z.string())
-        .default([])
-        .describe('Labels to add to every match, e.g. ["TRASH"]'),
-      removeLabels: z
-        .array(z.string())
-        .default([])
-        .describe('Labels to remove from every match, e.g. ["INBOX"]'),
       maxThreads: z
         .number()
         .optional()
         .default(10000)
-        .describe('Safety cap to prevent runaway operations'),
+        .describe('Safety cap; pagination stops after this many IDs are collected'),
     }),
     execute: async (params) => {
       const { stub: agent } = await getZeroAgent(connectionId);
-      return await agent.modifyThreadsByQuery(params);
+      return await agent.prepareBulkAction(params);
+    },
+  });
+
+const commitBulkAction = (connectionId: string) =>
+  tool({
+    description:
+      'PHASE 2 of a bulk-modify flow. Loads the cached thread IDs for `jobId` (produced by `prepareBulkAction`) and applies the label change to every one in a single pass. Updates both Gmail and the local UI cache. Requires user confirmation before calling — never call this without first running prepareBulkAction and getting explicit user approval.',
+    parameters: z.object({
+      jobId: z.string().describe('The jobId returned by prepareBulkAction.'),
+      addLabels: z
+        .array(z.string())
+        .default([])
+        .describe('Labels to add to every cached thread, e.g. ["TRASH"]'),
+      removeLabels: z
+        .array(z.string())
+        .default([])
+        .describe('Labels to remove from every cached thread, e.g. ["INBOX"]'),
+    }),
+    execute: async (params) => {
+      const { stub: agent } = await getZeroAgent(connectionId);
+      return await agent.commitBulkAction(params);
     },
   });
 
@@ -528,7 +545,8 @@ export const tools = async (connectionId: string, ragEffect: boolean = false) =>
     [Tools.CreateLabel]: createLabel(connectionId),
     [Tools.BulkDelete]: bulkDelete(connectionId),
     [Tools.BulkArchive]: bulkArchive(connectionId),
-    [Tools.ModifyThreadsByQuery]: modifyThreadsByQuery(connectionId),
+    [Tools.PrepareBulkAction]: prepareBulkAction(connectionId),
+    [Tools.CommitBulkAction]: commitBulkAction(connectionId),
     [Tools.DeleteLabel]: deleteLabel(connectionId),
     [Tools.BuildGmailSearchQuery]: buildGmailSearchQuery(),
     [Tools.GetCurrentDate]: getCurrentDate(),

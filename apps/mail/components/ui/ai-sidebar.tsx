@@ -351,11 +351,9 @@ function AISidebar({ className }: AISidebarProps) {
   });
 
   const chatState = useAgentChat({
-    getInitialMessages: async () => {
-      return [];
-    },
     agent,
     maxSteps: 10,
+    credentials: 'include',
     body: {
       threadId: threadId ?? undefined,
       currentFolder: folder ?? undefined,
@@ -428,7 +426,7 @@ function AISidebar({ className }: AISidebarProps) {
   });
 
   const handleNewChat = useCallback(() => {
-    chatState.setMessages([]);
+    chatState.clearHistory();
   }, [chatState]);
 
   return (

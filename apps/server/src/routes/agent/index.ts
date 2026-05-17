@@ -847,37 +847,30 @@ export class ZeroDriver extends DurableObject<ZeroEnv> {
     });
   }
 
-  // Bulk-modify labels for every thread matching a Gmail query + filter.
-  // Paginates the Gmail list endpoint 500 at a time, calls modifyLabels per
-  // page, returns counts only. Lets the chat AI say "trash all ebay emails"
-  // without ever pulling the matched threads into its context.
-  async modifyThreadsByQuery(params: {
+  // Phase 1 of the bulk-modify flow. Paginates Gmail for every thread
+  // matching `query`+filters, collects the IDs, and caches them in Redis
+  // under a UUID jobId with a 10-minute TTL. The chat AI shows the accurate
+  // `matched` count to the user for confirmation before phase 2 commits.
+  async prepareBulkAction(params: {
     query?: string;
     folder?: string;
     labelIds?: string[];
-    addLabels?: string[];
-    removeLabels?: string[];
     maxThreads?: number;
-  }): Promise<{ matched: number; modified: number; capped: boolean }> {
+  }): Promise<{
+    jobId: string;
+    matched: number;
+    capped: boolean;
+    ttlMinutes: number;
+    folder: string;
+  }> {
     if (!this.driver) {
       throw new Error('No driver available');
     }
-    const {
-      query,
-      folder = 'inbox',
-      labelIds,
-      addLabels = [],
-      removeLabels = [],
-      maxThreads = 10000,
-    } = params;
+    const { query, folder = 'inbox', labelIds, maxThreads = 10000 } = params;
 
-    if (addLabels.length === 0 && removeLabels.length === 0) {
-      throw new Error('Provide at least one of addLabels / removeLabels.');
-    }
-
-    let matched = 0;
-    let modified = 0;
+    const ids: string[] = [];
     let pageToken: string | undefined = undefined;
+    let capped = false;
     while (true) {
       const page = await this.driver.list({
         folder,
@@ -886,59 +879,128 @@ export class ZeroDriver extends DurableObject<ZeroEnv> {
         maxResults: 500,
         pageToken,
       });
-      const ids = (page.threads ?? [])
+      const pageIds = (page.threads ?? [])
         .map((t: { id?: string }) => t.id)
         .filter((id): id is string => Boolean(id));
-      if (ids.length === 0) break;
+      if (pageIds.length === 0) break;
 
-      let toModify = ids;
-      if (matched + ids.length > maxThreads) {
-        toModify = ids.slice(0, Math.max(0, maxThreads - matched));
+      const remaining = maxThreads - ids.length;
+      if (pageIds.length >= remaining) {
+        ids.push(...pageIds.slice(0, remaining));
+        capped = true;
+        break;
       }
-      matched += ids.length;
+      ids.push(...pageIds);
 
-      if (toModify.length > 0) {
-        await this.driver.modifyLabels(toModify, { addLabels, removeLabels });
-        // Mirror the same change in the local DO sqlite store the UI reads
-        // from. Each call below makes ~4 sub-RPCs (shard lookup, shard write,
-        // stats cache invalidate, doState broadcast); firing all 500 in
-        // parallel exhausts workerd's subrequest budget and 503s every other
-        // route. Drain through a small worker pool instead.
-        const queue = [...toModify];
-        const concurrency = 5;
-        let mirrorOk = 0;
-        let mirrorMissing = 0;
-        let mirrorErr = 0;
-        await Promise.all(
-          Array.from({ length: concurrency }, async () => {
-            while (queue.length > 0) {
-              const id = queue.shift();
-              if (!id) break;
-              try {
-                await modifyThreadLabelsInDB(this.name, id, addLabels, removeLabels);
-                mirrorOk++;
-              } catch (err) {
-                const msg = err instanceof Error ? err.message : String(err);
-                if (msg.includes('not found')) {
-                  mirrorMissing++;
-                } else {
-                  mirrorErr++;
-                  console.warn(`[modifyThreadsByQuery] Mirror failed for ${id}: ${msg}`);
-                }
-              }
-            }
-          }),
-        );
-        console.info(
-          `[modifyThreadsByQuery] Page mirror: ok=${mirrorOk}, missing-from-local-db=${mirrorMissing}, errored=${mirrorErr} (of ${toModify.length})`,
-        );
-        modified += toModify.length;
-      }
-      if (modified >= maxThreads) break;
       pageToken = page.nextPageToken ?? undefined;
       if (!pageToken) break;
     }
-    return { matched, modified, capped: matched >= maxThreads };
+
+    const jobId = crypto.randomUUID();
+    const ttlSeconds = 600;
+    await redis().set(
+      `bulkAction:${this.name}:${jobId}`,
+      JSON.stringify({ ids, query, folder, labelIds, createdAt: Date.now() }),
+      { ex: ttlSeconds },
+    );
+
+    console.info(
+      `[prepareBulkAction] Job ${jobId} cached ${ids.length} thread IDs from folder=${folder} query=${query ?? '(none)'}${capped ? ' (capped)' : ''}`,
+    );
+
+    return {
+      jobId,
+      matched: ids.length,
+      capped,
+      ttlMinutes: ttlSeconds / 60,
+      folder,
+    };
+  }
+
+  // Phase 2 of the bulk-modify flow. Loads the cached IDs from Redis, applies
+  // the label change to every one (Gmail in 500-batches, local DO sqlite via
+  // a concurrency-bounded worker pool), and deletes the Redis entry.
+  async commitBulkAction(params: {
+    jobId: string;
+    addLabels?: string[];
+    removeLabels?: string[];
+  }): Promise<{
+    matched: number;
+    modified: number;
+    mirroredInDB: number;
+    missingFromDB: number;
+  }> {
+    if (!this.driver) {
+      throw new Error('No driver available');
+    }
+    const { jobId, addLabels = [], removeLabels = [] } = params;
+
+    if (addLabels.length === 0 && removeLabels.length === 0) {
+      throw new Error('Provide at least one of addLabels / removeLabels.');
+    }
+
+    const key = `bulkAction:${this.name}:${jobId}`;
+    const raw = (await redis().get(key)) as
+      | { ids: string[]; query?: string; folder?: string }
+      | string
+      | null;
+
+    if (!raw) {
+      throw new Error(
+        `Bulk action ${jobId} not found or expired. Re-run prepareBulkAction and confirm within 10 minutes.`,
+      );
+    }
+
+    const job = typeof raw === 'string' ? (JSON.parse(raw) as { ids: string[] }) : raw;
+    const ids = job.ids ?? [];
+    if (ids.length === 0) {
+      await redis().del(key);
+      return { matched: 0, modified: 0, mirroredInDB: 0, missingFromDB: 0 };
+    }
+
+    // Gmail bulk modify in 500-thread batches (Gmail's per-call cap).
+    let modified = 0;
+    for (let i = 0; i < ids.length; i += 500) {
+      const batch = ids.slice(i, i + 500);
+      await this.driver.modifyLabels(batch, { addLabels, removeLabels });
+      modified += batch.length;
+    }
+
+    // Mirror in local DO sqlite (concurrency-bounded so workerd's subrequest
+    // budget isn't blown).
+    const queue = [...ids];
+    const concurrency = 5;
+    let mirroredInDB = 0;
+    let missingFromDB = 0;
+    let mirrorErr = 0;
+    await Promise.all(
+      Array.from({ length: concurrency }, async () => {
+        while (queue.length > 0) {
+          const id = queue.shift();
+          if (!id) break;
+          try {
+            await modifyThreadLabelsInDB(this.name, id, addLabels, removeLabels);
+            mirroredInDB++;
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            if (msg.includes('not found')) {
+              missingFromDB++;
+            } else {
+              mirrorErr++;
+              console.warn(`[commitBulkAction] Mirror failed for ${id}: ${msg}`);
+            }
+          }
+        }
+      }),
+    );
+
+    await redis().del(key);
+
+    console.info(
+      `[commitBulkAction] Job ${jobId}: modified=${modified}, mirroredInDB=${mirroredInDB}, missingFromDB=${missingFromDB}, errored=${mirrorErr}`,
+    );
+
+    return { matched: ids.length, modified, mirroredInDB, missingFromDB };
   }
 
   async updateLabel(
