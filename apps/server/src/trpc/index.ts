@@ -2,6 +2,7 @@ import { type inferRouterInputs, type inferRouterOutputs } from '@trpc/server';
 import { cookiePreferencesRouter } from './routes/cookies';
 import { connectionsRouter } from './routes/connections';
 import { categoriesRouter } from './routes/categories';
+import { chatsRouter } from './routes/chats';
 import { templatesRouter } from './routes/templates';
 import { shortcutRouter } from './routes/shortcut';
 import { settingsRouter } from './routes/settings';
@@ -24,6 +25,7 @@ export const appRouter = router({
   bimi: bimiRouter,
   brain: brainRouter,
   categories: categoriesRouter,
+  chats: chatsRouter,
   connections: connectionsRouter,
   cookiePreferences: cookiePreferencesRouter,
   drafts: draftsRouter,
