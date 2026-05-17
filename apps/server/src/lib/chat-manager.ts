@@ -109,15 +109,13 @@ export class ChatManager {
   }
 
   async getMessages(connectionId: string, chatId: string): Promise<Message[]> {
-    const chat = await this.getChat(connectionId, chatId);
-    if (!chat) return [];
-
     const { db, conn } = createDbClient();
     try {
       const rows = await db
-        .select()
+        .select({ message: chatMessages.message })
         .from(chatMessages)
-        .where(eq(chatMessages.chatId, chatId))
+        .innerJoin(chats, eq(chatMessages.chatId, chats.id))
+        .where(and(eq(chats.connectionId, connectionId), eq(chats.id, chatId)))
         .orderBy(chatMessages.createdAt);
       return rows.map((r) => r.message as Message);
     } finally {
@@ -130,12 +128,22 @@ export class ChatManager {
     chatId: string,
     messages: Message[],
   ): Promise<void> {
-    const chat = await this.getChat(connectionId, chatId);
-    if (!chat) throw new Error('Chat not found');
-
     const { db, conn } = createDbClient();
     try {
       await db.transaction(async (tx) => {
+        // Authorization + existence check in one shot: this UPDATE returns
+        // an empty array if the chat doesn't exist OR belongs to a different
+        // connection. We use .returning() to detect the miss without a
+        // separate SELECT round-trip.
+        const updated = await tx
+          .update(chats)
+          .set({ updatedAt: new Date() })
+          .where(and(eq(chats.connectionId, connectionId), eq(chats.id, chatId)))
+          .returning({ id: chats.id });
+        if (updated.length === 0) {
+          throw new Error('Chat not found');
+        }
+
         await tx.delete(chatMessages).where(eq(chatMessages.chatId, chatId));
         if (messages.length > 0) {
           await tx.insert(chatMessages).values(
@@ -148,10 +156,6 @@ export class ChatManager {
             })),
           );
         }
-        await tx
-          .update(chats)
-          .set({ updatedAt: new Date() })
-          .where(eq(chats.id, chatId));
       });
     } finally {
       await conn.end();
@@ -159,11 +163,16 @@ export class ChatManager {
   }
 
   async clearMessages(connectionId: string, chatId: string): Promise<void> {
-    const chat = await this.getChat(connectionId, chatId);
-    if (!chat) return;
     const { db, conn } = createDbClient();
     try {
-      await db.delete(chatMessages).where(eq(chatMessages.chatId, chatId));
+      // Inline ownership check via correlated subquery so the DELETE only
+      // affects messages whose parent chat belongs to this connection.
+      await db.delete(chatMessages).where(
+        and(
+          eq(chatMessages.chatId, chatId),
+          sql`exists (select 1 from ${chats} where ${chats.id} = ${chatId} and ${chats.connectionId} = ${connectionId})`,
+        ),
+      );
     } finally {
       await conn.end();
     }
