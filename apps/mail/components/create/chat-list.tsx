@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useTRPC } from '@/providers/query-provider';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChatListRow } from './chat-list-row';
@@ -8,7 +9,7 @@ export interface ChatListProps {
   activeChatId: string | null;
   onSelectChat: (id: string) => void;
   /** Optional header content rendered above the list (e.g. back button in narrow mode) */
-  header?: React.ReactNode;
+  header?: ReactNode;
 }
 
 export function ChatList({ activeChatId, onSelectChat, header }: ChatListProps) {

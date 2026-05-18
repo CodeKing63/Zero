@@ -8,6 +8,7 @@ import {
 import { useTRPC } from '@/providers/query-provider';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useRef, useEffect } from 'react';
+import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
@@ -36,6 +37,7 @@ export function ChatListRow({ chat, isActive, onClick, onDeleted }: ChatListRowP
   const deleteMutation = useMutation({
     ...trpc.chats.delete.mutationOptions(),
     onSuccess: () => qc.invalidateQueries({ queryKey: trpc.chats.list.queryKey() }),
+    onError: () => toast.error('Failed to delete chat'),
   });
 
   useEffect(() => {
