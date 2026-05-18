@@ -76,6 +76,7 @@ import { threads } from './db/schema';
 import { Effect, pipe } from 'effect';
 import { groq } from '../../lib/llm';
 import { createDb } from '../../db';
+import { ChatManager } from '../../lib/chat-manager';
 import type { Message } from 'ai';
 import { create } from './db';
 
@@ -2015,22 +2016,21 @@ export class ZeroAgent extends AIChatAgent<ZeroEnv> {
 
           const { body } = data.init;
 
-          const { messages, threadId, currentFolder, currentFilter } = JSON.parse(
+          const { messages, threadId, currentFolder, currentFilter, chatId: rawChatId } = JSON.parse(
             body as string,
           ) as {
             threadId: string;
             currentFolder: string;
             currentFilter: string;
             messages: Message[];
+            chatId?: string;
           };
-          this.broadcastChatMessage(
-            {
-              type: OutgoingMessageType.ChatMessages,
-              messages,
-            },
-            [connection.id],
-          );
-          await this.persistMessages(messages, [connection.id]);
+
+          const chatManager = new ChatManager();
+          const connectionId = this.name;
+          const chatId = rawChatId ?? (await chatManager.createChat(connectionId, { title: 'New chat' })).id;
+
+          await chatManager.persistMessages(connectionId, chatId, messages);
 
           const chatMessageId = data.id;
           //   const abortSignal = this.getAbortSignal(chatMessageId);
@@ -2043,7 +2043,7 @@ export class ZeroAgent extends AIChatAgent<ZeroEnv> {
                   responseMessages: response.messages,
                 });
 
-                await this.persistMessages(finalMessages, [connection.id]);
+                await chatManager.persistMessages(connectionId, chatId, finalMessages);
                 this.removeAbortController(chatMessageId);
               },
               threadId,
@@ -2068,22 +2068,6 @@ export class ZeroAgent extends AIChatAgent<ZeroEnv> {
               );
             }
           });
-        }
-        case IncomingMessageType.ChatClear: {
-          this.destroyAbortControllers();
-          void this.sql`delete from cf_ai_chat_agent_messages`;
-          this.messages = [];
-          this.broadcastChatMessage(
-            {
-              type: OutgoingMessageType.ChatClear,
-            },
-            [connection.id],
-          );
-          break;
-        }
-        case IncomingMessageType.ChatMessages: {
-          await this.persistMessages(data.messages, [connection.id]);
-          break;
         }
         case IncomingMessageType.ChatRequestCancel: {
           this.cancelChatRequest(data.id);
