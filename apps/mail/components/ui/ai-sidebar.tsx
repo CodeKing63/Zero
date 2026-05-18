@@ -412,7 +412,6 @@ function ActiveChat({ chatId, connectionId }: { chatId: string; connectionId: st
       }
     },
     async onToolCall({ toolCall }) {
-      console.warn('toolCall', toolCall);
       posthog.capture('AI Chat Tool Call', {
         toolCall,
         chatId,
@@ -494,6 +493,7 @@ function AISidebar({ className }: AISidebarProps) {
   }, [chatId, chats, activeConnection?.id]);
 
   const handleNewChat = useCallback(() => {
+    setView('chat');
     createMutation.mutate(undefined);
   }, [createMutation]);
 
