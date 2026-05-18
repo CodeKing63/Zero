@@ -29,6 +29,7 @@ import {
   generateText,
   streamText,
   type StreamTextOnFinishCallback,
+  type Message,
 } from 'ai';
 import {
   IncomingMessageType,
@@ -77,7 +78,6 @@ import { Effect, pipe } from 'effect';
 import { groq } from '../../lib/llm';
 import { createDb } from '../../db';
 import { ChatManager } from '../../lib/chat-manager';
-import type { Message } from 'ai';
 import { create } from './db';
 
 const decoder = new TextDecoder();
@@ -2028,14 +2028,13 @@ export class ZeroAgent extends AIChatAgent<ZeroEnv> {
 
           const chatManager = new ChatManager();
           const connectionId = this.name;
-          const chatId = rawChatId ?? (await chatManager.createChat(connectionId, { title: 'New chat' })).id;
-
-          await chatManager.persistMessages(connectionId, chatId, messages);
-
           const chatMessageId = data.id;
           //   const abortSignal = this.getAbortSignal(chatMessageId);
 
           return this.tryCatchChat(async () => {
+            const chatId = rawChatId ?? (await chatManager.createChat(connectionId, { title: 'New chat' })).id;
+            await chatManager.persistMessages(connectionId, chatId, messages);
+
             const response = await this.onChatMessageWithContext(
               async ({ response }) => {
                 const finalMessages = appendResponseMessages({
