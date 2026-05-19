@@ -3,7 +3,7 @@ import { ArrowsPointingIn, PanelLeftOpen, Phone } from '../icons/icons';
 import { useActiveConnection } from '@/hooks/use-connections';
 import { ResizablePanel } from '@/components/ui/resizable';
 import { useSearchValue } from '@/hooks/use-search-value';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import useSearchLabels from '@/hooks/use-labels-search';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AIChat } from '@/components/create/ai-chat';
@@ -448,6 +448,26 @@ function ActiveChat({ chatId, connectionId }: { chatId: string; connectionId: st
       await refetchBilling();
     },
   });
+
+  const chatsListQuery = useQuery(trpc.chats.list.queryOptions());
+  const titleStillDefault =
+    chatsListQuery.data?.find((c) => c.id === chatId)?.title === 'New chat';
+
+  const prevStatusRef = useRef(chatState.status);
+  useEffect(() => {
+    if (
+      prevStatusRef.current === 'streaming' &&
+      chatState.status === 'ready' &&
+      titleStillDefault
+    ) {
+      const timer = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: trpc.chats.list.queryKey() });
+      }, 1500);
+      prevStatusRef.current = chatState.status;
+      return () => clearTimeout(timer);
+    }
+    prevStatusRef.current = chatState.status;
+  }, [chatState.status, titleStillDefault, queryClient, trpc]);
 
   return <AIChat {...chatState} />;
 }
