@@ -184,7 +184,7 @@ export class ChatManager {
         }
       })();
       if (waitUntil) {
-        waitUntil(task);
+        waitUntil(task.catch((e) => console.warn('[chat-title] waitUntil task error', e)));
       } else {
         task.catch((e) => console.warn('[chat-title] background task error', e));
       }

@@ -5,11 +5,12 @@ import type { Message } from 'ai';
 
 function plainText(m: Message): string {
   const parts = m.parts ?? [];
-  return parts
+  const fromParts = parts
     .map((p) => ('text' in p ? p.text : ''))
     .filter(Boolean)
     .join(' ')
     .trim();
+  return fromParts || m.content || '';
 }
 
 export async function generateChatTitle(messages: Message[]): Promise<string | null> {
@@ -36,7 +37,7 @@ export async function generateChatTitle(messages: Message[]): Promise<string | n
         },
       ],
     });
-    const cleaned = text.trim().replace(/^["']|["']$/g, '').slice(0, 80);
+    const cleaned = text.trim().replace(/^["']|["']$/g, '').slice(0, 120);
     return cleaned || null;
   } catch (err) {
     console.warn('[generateChatTitle] failed', err);
