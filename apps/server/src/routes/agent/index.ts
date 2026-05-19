@@ -2033,7 +2033,7 @@ export class ZeroAgent extends AIChatAgent<ZeroEnv> {
 
           return this.tryCatchChat(async () => {
             const chatId = rawChatId ?? (await chatManager.createChat(connectionId, { title: 'New chat' })).id;
-            await chatManager.persistMessages(connectionId, chatId, messages);
+            await chatManager.persistMessages(connectionId, chatId, messages, this.ctx.waitUntil.bind(this.ctx));
 
             const response = await this.onChatMessageWithContext(
               async ({ response }) => {
@@ -2042,7 +2042,7 @@ export class ZeroAgent extends AIChatAgent<ZeroEnv> {
                   responseMessages: response.messages,
                 });
 
-                await chatManager.persistMessages(connectionId, chatId, finalMessages);
+                await chatManager.persistMessages(connectionId, chatId, finalMessages, this.ctx.waitUntil.bind(this.ctx));
                 this.removeAbortController(chatMessageId);
               },
               threadId,

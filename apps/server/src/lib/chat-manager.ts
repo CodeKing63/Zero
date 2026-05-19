@@ -2,6 +2,7 @@ import { and, desc, eq, sql } from 'drizzle-orm';
 import { chats, chatMessages } from '../db/schema';
 import { createDb } from '../db';
 import { env } from '../env';
+import { generateChatTitle } from './generate-chat-title';
 import type { Message } from 'ai';
 
 export type Chat = typeof chats.$inferSelect;
@@ -127,22 +128,26 @@ export class ChatManager {
     connectionId: string,
     chatId: string,
     messages: Message[],
+    waitUntil?: (p: Promise<unknown>) => void,
   ): Promise<void> {
     const { db, conn } = createDbClient();
+    let priorTitle: string | null = null;
     try {
       await db.transaction(async (tx) => {
         // Authorization + existence check in one shot: this UPDATE returns
         // an empty array if the chat doesn't exist OR belongs to a different
         // connection. We use .returning() to detect the miss without a
-        // separate SELECT round-trip.
+        // separate SELECT round-trip, and capture the prior title to decide
+        // whether to trigger background title generation.
         const updated = await tx
           .update(chats)
           .set({ updatedAt: new Date() })
           .where(and(eq(chats.connectionId, connectionId), eq(chats.id, chatId)))
-          .returning({ id: chats.id });
+          .returning({ id: chats.id, title: chats.title });
         if (updated.length === 0) {
           throw new Error('Chat not found');
         }
+        priorTitle = updated[0]!.title;
 
         await tx.delete(chatMessages).where(eq(chatMessages.chatId, chatId));
         if (messages.length > 0) {
@@ -159,6 +164,30 @@ export class ChatManager {
       });
     } finally {
       await conn.end();
+    }
+
+    // Title gen — fire-and-forget if still default and we have both sides.
+    const hasUser = messages.some((m) => m.role === 'user');
+    const hasAssistant = messages.some((m) => m.role === 'assistant');
+    if (priorTitle === 'New chat' && hasUser && hasAssistant) {
+      const task = (async () => {
+        const title = await generateChatTitle(messages);
+        if (!title) return;
+        const { db: db2, conn: conn2 } = createDbClient();
+        try {
+          await db2
+            .update(chats)
+            .set({ title })
+            .where(and(eq(chats.id, chatId), eq(chats.title, 'New chat')));
+        } finally {
+          await conn2.end();
+        }
+      })();
+      if (waitUntil) {
+        waitUntil(task);
+      } else {
+        task.catch((e) => console.warn('[chat-title] background task error', e));
+      }
     }
   }
 
