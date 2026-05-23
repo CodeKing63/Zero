@@ -382,10 +382,15 @@ function ActiveChat({ chatId, connectionId }: { chatId: string; connectionId: st
       currentFolder: folder ?? undefined,
       currentFilter: searchValue.value ?? undefined,
     },
-    getInitialMessages: async () =>
-      (await queryClient.fetchQuery(
-        trpc.chats.getMessages.queryOptions({ chatId }),
-      )) as any,
+    getInitialMessages: async () => {
+      try {
+        return (await queryClient.fetchQuery(
+          trpc.chats.getMessages.queryOptions({ chatId }),
+        )) as any;
+      } catch {
+        return [];
+      }
+    },
     onError(error) {
       console.error('Error in useChat', error);
       posthog.capture('AI Chat Error', {
@@ -490,7 +495,7 @@ function AISidebar({ className }: AISidebarProps) {
 
   const [chatId, setChatId] = useChatId();
   const [view, setView] = useState<'chat' | 'list'>('chat');
-  const { data: chats = [] } = useQuery(trpc.chats.list.queryOptions());
+  const { data: chats = [], isLoading: chatsLoading } = useQuery(trpc.chats.list.queryOptions());
   const createMutation = useMutation({
     ...trpc.chats.create.mutationOptions(),
     onSuccess: async (chat) => {
@@ -503,6 +508,7 @@ function AISidebar({ className }: AISidebarProps) {
   // Auto-select / auto-create on mount and whenever chatId becomes stale.
   useEffect(() => {
     if (!activeConnection?.id) return;
+    if (chatsLoading) return; // wait for the list query to settle
     if (chatId && chats.some((c) => c.id === chatId)) return; // valid
     if (chats.length > 0) {
       setChatId(chats[0]!.id);
@@ -510,7 +516,7 @@ function AISidebar({ className }: AISidebarProps) {
       createMutation.mutate(undefined);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chatId, chats, activeConnection?.id]);
+  }, [chatId, chats, chatsLoading, activeConnection?.id]);
 
   const handleNewChat = useCallback(() => {
     setView('chat');
