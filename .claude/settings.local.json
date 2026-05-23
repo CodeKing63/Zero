@@ -37,7 +37,25 @@
       "Bash(awk '/this\\\\.server\\\\.tool\\\\\\(/{getline; print NR\": \"$0}' apps/server/src/routes/chat.ts)",
       "Bash(sed -i 's|^THREAD_SYNC_MAX_TOTAL=.*|THREAD_SYNC_MAX_TOTAL=4000|' .env)",
       "Bash(sed -i 's|^THREAD_SYNC_MAX_COUNT=.*|THREAD_SYNC_MAX_COUNT=500|' .env)",
-      "Bash(bunx tsc *)"
+      "Bash(bunx tsc *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git -C \"C:/Users/AliBa/OneDrive/Documents/gitHub/Zero\" branch --show-current)",
+      "Bash(git -C \"C:/Users/AliBa/OneDrive/Documents/gitHub/Zero\" status)",
+      "Bash(git commit *)",
+      "Bash(git -C \"C:/Users/AliBa/OneDrive/Documents/gitHub/Zero\" log --oneline -5)",
+      "Bash(git *)",
+      "Bash(docker --version)",
+      "PowerShell(Get-Process *)",
+      "Bash(docker info *)",
+      "Bash(break)",
+      "WebFetch(domain:)",
+      "WebSearch",
+      "WebFetch(domain:developers.cloudflare.com)",
+      "Bash(pnpm exec *)",
+      "Bash(pnpm --filter @zero/server exec tsc --noEmit)",
+      "PowerShell(pnpm *)",
+      "WebFetch(domain:github.com)"
     ]
   }
 }
